@@ -1,0 +1,569 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: API SPECIFICATION CARBONIZE
+  description: "[ Base URL = localhost:2005/api/v1/carbonize ]"
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+# tags are used for organizing operations
+tags:
+  - name: Auth
+    description: Endpoint untuk login dan registrasi
+  - name: Users
+    description: Endpoint terkait data user
+  - name: Emission Factors
+    description: Endpoint terkait faktor emisi
+  - name: Consumption Entries
+    description: Endpoint konsumsi & perhitungan emisi pengguna
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login User
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: email
+          in: formData
+          required: true
+          type: string
+          format: email
+        - name: password
+          in: formData
+          required: true
+          type: string
+          format: password
+          minLength: 5
+      responses:
+        '200':
+          $ref: '#/responses/LoginResponse'
+        '400':
+          $ref: '#/responses/ErrorResponse'
+        '404':
+          description: Not Found
+      operationId: auth-login
+    parameters: []
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register User
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: name
+          in: formData
+          required: true
+          type: string
+          minLength: 3
+        - name: email
+          in: formData
+          required: true
+          type: string
+          format: email
+        - name: password
+          in: formData
+          required: true
+          type: string
+          minLength: 5
+          format: password
+      responses:
+        '200':
+          $ref: '#/responses/RegisterResponse'
+        '400':
+          $ref: '#/responses/ErrorResponse'
+        '404':
+          description: Not Found
+  /user/profile:
+    get:
+      tags:
+        - Users
+      summary: Get User Profile
+      description: Mengambil data profil user yang sedang login.
+      produces:
+        - application/json
+      parameters:
+        - type: string
+          in: query
+          name: user_id
+          description: ambil dari response login
+      responses:
+        '200':
+          description: Data profil user berhasil didapatkan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: Profil user ditemukan
+              data:
+                $ref: '#/definitions/User'
+        '401':
+          $ref: '#/responses/ErrorResponse'
+        '404':
+          description: User tidak ditemukan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: User tidak ditemukan
+              data:
+                type: 'null'
+                example: null
+        '500':
+          $ref: '#/responses/ErrorResponse'
+  /user/change-password:
+    post:
+      tags:
+        - Users
+      summary: Change User Password
+      description: Mengubah password user berdasarkan user_id.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - type: string
+          in: query
+          name: user_id
+        - in: formData
+          type: string
+          name: old_password
+        - in: formData
+          type: string
+          name: new_password
+      responses:
+        '200':
+          description: Password berhasil diubah
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: Password berhasil diperbarui
+              data:
+                type: 'null'
+                example: null
+        '400':
+          description: Validasi gagal
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Password lama salah atau password baru tidak valid
+              data:
+                type: 'null'
+                example: null
+        '404':
+          description: User tidak ditemukan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: User tidak ditemukan
+              data:
+                type: 'null'
+                example: null
+        '500':
+          $ref: '#/responses/ErrorResponse'
+  /emission/categories:
+    get:
+      tags:
+        - Emission Factors
+      summary: Get All Emission Factor Categories
+      description: Mengambil seluruh kategori faktor emisi.
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Daftar kategori faktor emisi
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: Daftar kategori faktor emisi berhasil diambil
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/emission_factor_categories'
+        '404':
+          description: Data kategori faktor emisi tidak ditemukan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Tidak ada data kategori faktor emisi
+              data:
+                type: 'null'
+                example: null
+        '500':
+          $ref: '#/responses/ErrorResponse'
+
+  /emission/factors:
+    get:
+      tags:
+        - Emission Factors
+      summary: Get Emission Factor Items
+      description: Mengambil seluruh item faktor emisi berdasarkan kategori (opsional).
+      produces:
+        - application/json
+      parameters:
+        - name: category_id
+          in: query
+          required: false
+          type: string
+          description: Filter berdasarkan ID kategori
+      responses:
+        '200':
+          description: Daftar item faktor emisi
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: Daftar faktor emisi berhasil diambil
+              data:
+                type: array
+                items:
+                  $ref: '#/definitions/emission_factor_items'
+        '404':
+          description: Data faktor emisi tidak ditemukan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Tidak ada data faktor emisi
+              data:
+                type: 'null'
+                example: null
+        '500':
+          $ref: '#/responses/ErrorResponse'
+  /consumption/entries:
+    post:
+      tags:
+        - Consumption Entries
+      summary: Create Consumption Entry
+      description: Menambahkan data konsumsi dan menghasilkan perhitungan emisi berdasarkan faktor emisi.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - name: user_id
+          in: formData
+          required: true
+          type: string
+          description: ID user (ambil dari response login)
+        - name: factor_items_id
+          in: formData
+          required: true
+          type: string
+          description: ID item faktor emisi
+        - name: quantity
+          in: formData
+          required: true
+          type: number
+          description: Jumlah konsumsi (liter, kWh, km, dll)
+        - name: entry_date
+          in: formData
+          required: true
+          type: string
+          format: date-time
+          description: Tanggal pencatatan konsumsi
+        - name: image
+          in: formData
+          required: false
+          type: string
+          description: URL bukti gambar (opsional)
+        - name: metadata[customEfficiency]
+          in: formData
+          required: false
+          type: number
+        - name: metadata[fuelType]
+          in: formData
+          required: false
+          type: string
+        - name: metadata[transportationMode]
+          in: formData
+          required: false
+          type: string
+        - name: metadata[useCustomEfficiency]
+          in: formData
+          required: false
+          type: boolean
+      responses:
+        '200':
+          description: Data konsumsi berhasil ditambahkan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: Data konsumsi berhasil ditambahkan
+              data:
+                $ref: '#/definitions/consumption_entries'
+        '400':
+          description: Validasi gagal
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Data tidak valid atau parameter tidak lengkap
+              data:
+                type: 'null'
+                example: null
+        '404':
+          description: User atau faktor emisi tidak ditemukan
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: User atau faktor emisi tidak ditemukan
+              data:
+                type: 'null'
+                example: null
+        '500':
+          $ref: '#/responses/ErrorResponse'
+
+
+
+definitions:
+  User:
+    title: User
+    type: object
+    properties:
+      id:
+        type: string
+        description: auto generated or increment
+      name:
+        type: string
+        x-stoplight:
+          id: ptq2yq70u34v5
+      email:
+        type: string
+        x-stoplight:
+          id: xupf3uj6ran01
+      password:
+        type: string
+        x-stoplight:
+          id: or9kordpphx7s
+      profileImage:
+        type: string
+        x-stoplight:
+          id: 68hyg95l4g98d
+      dailyCarbonLimit:
+        type: integer
+        x-stoplight:
+          id: bo5k9179nzzfq
+      dateOfBirth:
+        type: date
+        x-stoplight:
+          id: 1fqdsery5iye8
+      lastLogin:
+        type: datetime
+        x-stoplight:
+          id: 7i984b142k95e
+      CreatedAt:
+        type: timestamp
+        x-stoplight:
+          id: gtogfx26hc7jm
+  emission_factor_categories:
+    title: emission_factor_categories
+    type: object
+    properties:
+      id:
+        type: string
+      category_name:
+        type: string
+        x-stoplight:
+          id: bq7rknkpy6bwe
+  emission_factor_items:
+    title: emission_factor_items
+    type: object
+    properties:
+      id:
+        type: string
+      factor_category_id:
+        type: string
+        x-stoplight:
+          id: i9quu79op04pz
+        description: "foreign key to emission factor category\r\n"
+      name:
+        type: string
+        x-stoplight:
+          id: ufd7kwpw9cz5s
+      value:
+        type: string
+        x-stoplight:
+          id: nkbxmvyt2c4st
+  consumption_entries:
+    title: consumption_entries
+    type: object
+    properties:
+      id:
+        type: string
+      'user_id ':
+        type: string
+        x-stoplight:
+          id: xc9mhjm9k9zcr
+      factor_items_id:
+        type: string
+        x-stoplight:
+          id: 1as24asmsb4m8
+      'entry_date ':
+        type: datetime
+        x-stoplight:
+          id: 0bwctaeph2od8
+      'emissions ':
+        type: number
+        x-stoplight:
+          id: mlwm0oacv9aup
+      image:
+        type: string
+        x-stoplight:
+          id: ac2h5yy2fwudp
+      metadata:
+        type: object
+        x-stoplight:
+          id: 5lr8mkbjlrbp5
+        properties:
+          customEfficiency:
+            type: number
+            nullable: true
+          fuelType:
+            type: string
+            nullable: true
+          transportationMode:
+            type: string
+          useCustomEfficiency:
+            type: boolean
+      quantity:
+        type: number
+        x-stoplight:
+          id: sejhiqcyi7sbb
+      createdAt:
+        type: timestamp
+        x-stoplight:
+          id: 2o61b5j9xyivq
+responses:
+  LoginResponse:
+    description: Login berhasil
+    schema:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login berhasil
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+            lastLogin:
+              type: string
+              format: date-time
+            token:
+              type: string
+  RegisterResponse:
+    description: Register berhasil
+    schema:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Register berhasil
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+  ErrorResponse:
+    description: Request gagal
+    schema:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Terjadi kesalahan
+        data:
+          type: 'null'
+          example: null
+
+# Added by API Auto Mocking Plugin
+# host: localhost:2005/api/
+# basePath: v1/carbonize
+# schemes:
+#  - http
+# Added by API Auto Mocking Plugin
+host: virtserver.swaggerhub.com
+basePath: /telkom-222/Carbonize/1.0.0
+schemes:
+ - https
+ - http

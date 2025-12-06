@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('emission_factor_items', function (Blueprint $table) {
+            $table->dropColumn('value');
+        });
+
+        Schema::table('emission_factor_items', function (Blueprint $table) {
+            $table->string('value')->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('emission_factor_items', function (Blueprint $table) {
+            $table->dropColumn('value');
+        });
+
+        Schema::table('emission_factor_items', function (Blueprint $table) {
+            $table->decimal('value', 10, 3)->nullable();
+        });
+    }
+};

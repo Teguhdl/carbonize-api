@@ -30,7 +30,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/ApiResponse.php"
+            "app/Helpers/ApiResponse.php",
+            "app/Helpers/CostumToken.php"
         ]
     },
     "autoload-dev": {

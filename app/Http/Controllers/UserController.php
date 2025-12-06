@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends BaseController
 {
-    // ---------------------------------------------------
-    // GET /user/profile
-    // ---------------------------------------------------
+
     public function profile(Request $request)
     {
-        $user = User::find($request->user_id);
+        $userId = $request->custom_user_id;
+
+        $user = User::find($userId);
 
         if (!$user) {
             return $this->notFound('User tidak ditemukan');
@@ -22,13 +22,9 @@ class UserController extends BaseController
         return $this->success($user, 'Profil user ditemukan');
     }
 
-    // ---------------------------------------------------
-    // POST /user/change-password
-    // ---------------------------------------------------
     public function changePassword(Request $request)
     {
         $validator = validator($request->all(), [
-            'user_id'      => 'required',
             'old_password' => 'required',
             'new_password' => 'required|min:5'
         ]);
@@ -37,7 +33,7 @@ class UserController extends BaseController
             return $this->validation($validator->errors(), 'Password lama salah atau password baru tidak valid');
         }
 
-        $user = User::find($request->user_id);
+        $user = User::find($request->custom_user_id);
 
         if (!$user) {
             return $this->notFound('User tidak ditemukan');

@@ -6,6 +6,8 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Routing\RouteNotFoundException;
+
 
 class Handler extends ExceptionHandler
 {
@@ -24,20 +26,29 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $exception)
     {
-       
-        if ($exception instanceof MethodNotAllowedHttpException) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Metode request tidak diizinkan untuk endpoint ini.',
-            ], 405);
-        }
+        if ($request->expectsJson()) {
 
-    
-        if ($exception instanceof NotFoundHttpException) {
+            if ($exception instanceof MethodNotAllowedHttpException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Metode request tidak diizinkan untuk endpoint ini.',
+                ], 405);
+            }
+
+            if (
+                $exception instanceof NotFoundHttpException ||
+                $exception instanceof RouteNotFoundException
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Endpoint tidak ditemukan.',
+                ], 404);
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Endpoint tidak ditemukan.',
-            ], 404);
+                'message' => $exception->getMessage() ?: 'Terjadi kesalahan pada server.',
+            ], 500);
         }
 
         return parent::render($request, $exception);

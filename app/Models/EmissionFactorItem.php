@@ -17,7 +17,7 @@ class EmissionFactorItem extends Model
     public $timestamps = false;
 
     protected $casts = [
-        'value' => 'float',
+        'value' => 'string',
     ];
 
     // Relations

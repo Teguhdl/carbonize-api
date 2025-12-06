@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends BaseController
 {
-   
+
     public function login(Request $request)
     {
         $validator = validator($request->all(), [
@@ -22,27 +22,29 @@ class AuthController extends BaseController
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            return $this->notFound('User tidak ditemukan');
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return $this->error('Email atau password salah', 400);
         }
 
-        if (!Hash::check($request->password, $user->password)) {
-            return $this->error('Password salah', 400);
-        }
-
-        $token = base64_encode($user->email . '|' . now());
-
-        $user->lastLogin = now();
-        $user->save();
+        $sanctumToken = $user->createToken('api-token')->plainTextToken;
+        $customToken = \App\Helpers\CustomToken::create([
+            'user_id' => $user->id,
+            'token_id' => explode('|', $sanctumToken)[0], // Sanctum token ID
+            'email' => $user->email,
+            'exp' => time() + (60 * 60 * 24), // 24 jam expired
+        ]);
 
         return $this->success([
-            'id'        => $user->id,
-            'name'      => $user->name,
-            'email'     => $user->email,
-            'lastLogin' => $user->lastLogin,
-            'token'     => $token,
+            'user' => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+            ],
+            'sanctum_token' => $sanctumToken,
+            'custom_token'  => $customToken,
         ], 'Login berhasil');
     }
+
 
     public function register(Request $request)
     {

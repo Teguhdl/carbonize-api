@@ -36,4 +36,9 @@ class ConsumptionEntry extends Model
     {
         return $this->belongsTo(EmissionFactorItem::class, 'factor_items_id');
     }
+
+    public function getImageAttribute($value)
+    {
+        return $value ? url('storage/' . $value) : null;
+    }
 }

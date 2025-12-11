@@ -22,7 +22,7 @@ class ApiResponse
         ], $status);
     }
 
-    public static function validationError($errors, string $message = 'Validation failed')
+    public static function validationError($errors, string $message = 'Validasi gagal')
     {
         return response()->json([
             'success'  => false,
@@ -31,7 +31,7 @@ class ApiResponse
         ], 422);
     }
 
-    public static function notFound(string $message = 'Data not found')
+    public static function notFound(string $message = 'Data tidak ditemukan')
     {
         return response()->json([
             'success'  => false,

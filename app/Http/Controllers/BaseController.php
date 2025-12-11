@@ -16,12 +16,12 @@ class BaseController extends Controller
         return ApiResponse::error($message, $status, $errors);
     }
 
-    protected function notFound(string $message = 'Data not found')
+    protected function notFound(string $message = 'Data tidak ditemukan')
     {
         return ApiResponse::notFound($message);
     }
 
-    protected function validation($errors, string $message = 'Validation failed')
+    protected function validation($errors, string $message = 'Validasi gagal')
     {
         return ApiResponse::validationError($errors, $message);
     }

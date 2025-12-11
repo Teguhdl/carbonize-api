@@ -20,12 +20,12 @@ class EmissionFactorItemController extends BaseController
         $items = $query->get();
 
         if ($items->isEmpty()) {
-            return $this->notFound('Emission factor items not found');
+            return $this->notFound('Item faktor emisi tidak ditemukan');
         }
 
         return $this->success(
             $items,
-            'Emission factor items retrieved successfully'
+            'Item faktor emisi berhasil diambil'
         );
     }
 
@@ -34,10 +34,8 @@ class EmissionFactorItemController extends BaseController
     {
         $validator = Validator::make($request->all(), [
             'factor_category_id' => 'required|integer|exists:emission_factor_categories,id',
-            'item_name'          => 'required|string|max:255',
-            'unit'               => 'required|string|max:50',
-            'emission_factor'    => 'required|numeric',
-            'metadata'           => 'nullable|array'
+            'name'               => 'required|string|max:255',
+            'value'              => 'required', 
         ]);
 
         if ($validator->fails()) {
@@ -46,15 +44,13 @@ class EmissionFactorItemController extends BaseController
 
         $item = EmissionFactorItem::create([
             'factor_category_id' => $request->factor_category_id,
-            'item_name'          => $request->item_name,
-            'unit'               => $request->unit,
-            'emission_factor'    => $request->emission_factor,
-            'metadata'           => $request->metadata
+            'name'               => $request->name,
+            'value'              => $request->value,
         ]);
 
         return $this->success(
             $item,
-            'Emission factor item created successfully',
+            'Item faktor emisi berhasil dibuat',
             201
         );
     }
@@ -65,12 +61,12 @@ class EmissionFactorItemController extends BaseController
         $item = EmissionFactorItem::find($id);
 
         if (!$item) {
-            return $this->notFound('Emission factor item not found');
+            return $this->notFound('Item faktor emisi tidak ditemukan');
         }
 
         return $this->success(
             $item,
-            'Emission factor item retrieved successfully'
+            'Item faktor emisi berhasil diambil'
         );
     }
 
@@ -80,15 +76,13 @@ class EmissionFactorItemController extends BaseController
         $item = EmissionFactorItem::find($id);
 
         if (!$item) {
-            return $this->notFound('Emission factor item not found');
+            return $this->notFound('Item faktor emisi tidak ditemukan');
         }
 
         $validator = Validator::make($request->all(), [
             'factor_category_id' => 'nullable|integer|exists:emission_factor_categories,id',
-            'item_name'          => 'nullable|string|max:255',
-            'unit'               => 'nullable|string|max:50',
-            'emission_factor'    => 'nullable|numeric',
-            'metadata'           => 'nullable|array'
+            'name'               => 'nullable|string|max:255',
+            'value'              => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -97,15 +91,13 @@ class EmissionFactorItemController extends BaseController
 
         $item->update($request->only([
             'factor_category_id',
-            'item_name',
-            'unit',
-            'emission_factor',
-            'metadata'
+            'name',
+            'value',
         ]));
 
         return $this->success(
             $item,
-            'Emission factor item updated successfully'
+            'Item faktor emisi berhasil diperbarui'
         );
     }
 
@@ -115,14 +107,14 @@ class EmissionFactorItemController extends BaseController
         $item = EmissionFactorItem::find($id);
 
         if (!$item) {
-            return $this->notFound('Emission factor item not found');
+            return $this->notFound('Item faktor emisi tidak ditemukan');
         }
 
         $item->delete();
 
         return $this->success(
             null,
-            'Emission factor item deleted successfully'
+            'Item faktor emisi berhasil dihapus'
         );
     }
 }

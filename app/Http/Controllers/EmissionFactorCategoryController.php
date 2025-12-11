@@ -9,13 +9,19 @@ use Illuminate\Support\Facades\Validator;
 class EmissionFactorCategoryController extends BaseController
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        $categories = EmissionFactorCategory::with('items')->get();
+        $query = EmissionFactorCategory::query();
+
+        if ($request->input('iswithItems', '0') == '1') {
+            $query->with('items');
+        }
+
+        $categories = $query->get();
 
         return $this->success(
             $categories,
-            'Emission factor categories retrieved successfully'
+            'Kategori faktor emisi berhasil diambil'
         );
     }
 
@@ -36,7 +42,7 @@ class EmissionFactorCategoryController extends BaseController
 
         return $this->success(
             $category,
-            'Emission factor category created successfully',
+            'Kategori faktor emisi berhasil dibuat',
             201
         );
     }
@@ -47,12 +53,12 @@ class EmissionFactorCategoryController extends BaseController
         $category = EmissionFactorCategory::with('items')->find($id);
 
         if (!$category) {
-            return $this->notFound('Emission factor category not found');
+            return $this->notFound('Kategori faktor emisi tidak ditemukan');
         }
 
         return $this->success(
             $category,
-            'Emission factor category retrieved successfully'
+            'Kategori faktor emisi berhasil diambil'
         );
     }
 
@@ -62,7 +68,7 @@ class EmissionFactorCategoryController extends BaseController
         $category = EmissionFactorCategory::find($id);
 
         if (!$category) {
-            return $this->notFound('Emission factor category not found');
+            return $this->notFound('Kategori faktor emisi tidak ditemukan');
         }
 
         $validator = Validator::make($request->all(), [
@@ -78,7 +84,7 @@ class EmissionFactorCategoryController extends BaseController
 
         return $this->success(
             $category,
-            'Emission factor category updated successfully'
+            'Kategori faktor emisi berhasil diperbarui'
         );
     }
 
@@ -88,14 +94,14 @@ class EmissionFactorCategoryController extends BaseController
         $category = EmissionFactorCategory::find($id);
 
         if (!$category) {
-            return $this->notFound('Emission factor category not found');
+            return $this->notFound('Kategori faktor emisi tidak ditemukan');
         }
 
         $category->delete();
 
         return $this->success(
             null,
-            'Emission factor category deleted successfully'
+            'Kategori faktor emisi berhasil dihapus'
         );
     }
 }

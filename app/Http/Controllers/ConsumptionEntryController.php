@@ -64,6 +64,8 @@ class ConsumptionEntryController extends BaseController
             'createdAt'       => now()
         ]);
 
+        $entry->load('factorItem.category');
+
         return $this->success(
             $entry,
             'Entri konsumsi berhasil dibuat',
@@ -75,7 +77,8 @@ class ConsumptionEntryController extends BaseController
     {
         $userId = $request->custom_user_id;
 
-        $entries = ConsumptionEntry::where('user_id', $userId)
+        $entries = ConsumptionEntry::with('factorItem.category')
+            ->where('user_id', $userId)
             ->orderBy('entry_date', 'desc')
             ->get();
 
@@ -91,7 +94,7 @@ class ConsumptionEntryController extends BaseController
 
     public function show($id)
     {
-        $entry = ConsumptionEntry::find($id);
+        $entry = ConsumptionEntry::with('factorItem.category')->find($id);
 
         if (!$entry) {
             return $this->notFound('Entri konsumsi tidak ditemukan');

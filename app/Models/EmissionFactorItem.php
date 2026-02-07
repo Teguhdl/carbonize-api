@@ -12,6 +12,7 @@ class EmissionFactorItem extends Model
         'factor_category_id',
         'name',
         'value',
+        'climatiq_id',
     ];
 
     public $timestamps = false;

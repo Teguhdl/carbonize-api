@@ -71,4 +71,15 @@ class AuthController extends BaseController
             'email' => $user->email,
         ], 'Register berhasil', 201);
     }
+
+    /**
+     * Logout user - revoke token
+     */
+    public function logout(Request $request)
+    {
+        // Revoke current access token
+        $request->user()->currentAccessToken()->delete();
+
+        return $this->success(null, 'Logout berhasil');
+    }
 }

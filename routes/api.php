@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmissionFactorItemController;
 use App\Http\Controllers\ConsumptionEntryController;
 use App\Http\Controllers\EmissionFactorCategoryController;
+use App\Http\Controllers\EmissionCalculatorController;
 
 Route::prefix('v1')->group(function () {
 
@@ -19,9 +20,16 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['auth:sanctum', 'custom.token'])->group(function () {
         /* --------------------------------------------------------------------------
-     | USER ROUTES
-     -------------------------------------------------------------------------- */
+         | AUTH (Authenticated)
+         -------------------------------------------------------------------------- */
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+        /* --------------------------------------------------------------------------
+         | USER ROUTES
+         -------------------------------------------------------------------------- */
         Route::get('/user/profile', [UserController::class, 'profile']);
+        Route::put('/user/profile', [UserController::class, 'updateProfile']);
+        Route::post('/user/profile/image', [UserController::class, 'uploadProfileImage']);
         Route::post('/user/change-password', [UserController::class, 'changePassword']);
 
         /* --------------------------------------------------------------------------
@@ -41,6 +49,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/factors/{id}', [EmissionFactorItemController::class, 'show']);
             Route::put('/factors/{id}', [EmissionFactorItemController::class, 'update']);
             Route::delete('/factors/{id}', [EmissionFactorItemController::class, 'destroy']);
+
+            // Emission Calculator (Climatiq Integration)
+            Route::post('/calculate', [EmissionCalculatorController::class, 'calculate']);
+            Route::post('/calculate-fuel', [EmissionCalculatorController::class, 'calculateFuel']);
         });
 
         /* --------------------------------------------------------------------------

@@ -6,10 +6,17 @@ use Illuminate\Http\Request;
 use App\Models\ConsumptionEntry;
 use App\Models\User;
 use App\Models\EmissionFactorItem;
+use App\Services\ClimatiqService;
 use Illuminate\Support\Facades\Validator;
 
 class ConsumptionEntryController extends BaseController
 {
+    protected ClimatiqService $climatiqService;
+
+    public function __construct(ClimatiqService $climatiqService)
+    {
+        $this->climatiqService = $climatiqService;
+    }
   
     public function store(Request $request)
     {
@@ -43,6 +50,7 @@ class ConsumptionEntryController extends BaseController
             'fuelType'            => "",
             'transportationMode'  => "",
             'useCustomEfficiency' => false,
+            'vehicleType'         => "",  // Added for fuel & transport calculations
         ];
 
         $requestMetadata = $request->input('metadata', []);
@@ -51,7 +59,130 @@ class ConsumptionEntryController extends BaseController
         }
         $metadata = array_merge($defaultMetadata, $requestMetadata);
 
-        $emissions = $request->quantity * floatval($factor->value);
+        // ============================================
+        // CALCULATE EMISSIONS
+        // ============================================
+        // Different logic based on category:
+        // 1. Food & Packaging: Fixed value OR Climatiq API
+        // 2. Fuel Consumption: (distance / efficiency) × fuel_factor
+        // 3. Public Transport: (emission_factor × distance) / avg_passengers
+        // 4. Vehicle Efficiency: Not calculated (reference data only)
+        
+        $emissions = 0;
+        $categoryName = $factor->category->category_name ?? '';
+        
+        // ============================================
+        // CATEGORY 1: FOOD & PACKAGING
+        // ============================================
+        if (str_contains(strtolower($categoryName), 'food') || 
+            str_contains(strtolower($categoryName), 'packaging')) {
+            
+            // Check if Climatiq ID exists
+            if (!empty($factor->climatiq_id)) {
+                // Use Climatiq API
+                $result = $this->climatiqService->calculateEmissions(
+                    climatiqId: $factor->climatiq_id,
+                    quantity: (float) $request->quantity,
+                    unit: 'kg',
+                    parameterType: 'weight'
+                );
+                
+                if ($result['success']) {
+                    $emissions = $result['co2e'];
+                } else {
+                    // Fallback to value if available
+                    if (is_numeric($factor->value)) {
+                        $emissions = $request->quantity * floatval($factor->value);
+                    }
+                }
+            } else {
+                // Use fixed value calculation
+                if (is_numeric($factor->value)) {
+                    $emissions = $request->quantity * floatval($factor->value);
+                }
+            }
+        }
+        
+        // ============================================
+        // CATEGORY 2: FUEL CONSUMPTION (PRIVATE VEHICLE)
+        // ============================================
+        elseif (str_contains(strtolower($categoryName), 'fuel')) {
+            
+            $distance = (float) $request->quantity; // in km
+            $fuelEmissionFactor = floatval($factor->value); // kg CO2e/liter
+            
+            // Get efficiency (custom or default)
+            $efficiency = 20; // default fallback
+            
+            if (!empty($metadata['useCustomEfficiency']) && !empty($metadata['customEfficiency'])) {
+                // Use custom efficiency from user input
+                $efficiency = (float) $metadata['customEfficiency'];
+            } else {
+                // Get default efficiency from vehicle type
+                if (!empty($metadata['vehicleType'])) {
+                    $vehicleItem = EmissionFactorItem::whereHas('category', function($q) {
+                        $q->where('category_name', 'Vehicle Efficiency');
+                    })->where('name', $metadata['vehicleType'])->first();
+                    
+                    if ($vehicleItem && is_numeric($vehicleItem->value)) {
+                        $efficiency = floatval($vehicleItem->value);
+                    }
+                }
+            }
+            
+            // Calculate: (distance / efficiency) × fuel_emission_factor
+            $litersUsed = $distance / $efficiency;
+            $emissions = $litersUsed * $fuelEmissionFactor;
+        }
+        
+        // ============================================
+        // CATEGORY 3: PUBLIC TRANSPORT
+        // ============================================
+        elseif (str_contains(strtolower($categoryName), 'transport')) {
+            
+            $distance = (float) $request->quantity; // in km
+            
+            // Check if this is emission factor or passenger count
+            $isEmissionFactor = str_contains($factor->name, '(Emission)');
+            
+            if ($isEmissionFactor) {
+                // This is the emission factor
+                $emissionFactor = floatval($factor->value); // kg CO2e/km (total vehicle)
+                
+                // Get passenger count
+                // Name format: "City Bus (Emission)" -> find "City Bus (Passengers)"
+                $vehicleBaseName = str_replace(' (Emission)', '', $factor->name);
+                $passengerItem = EmissionFactorItem::where('factor_category_id', $factor->factor_category_id)
+                    ->where('name', $vehicleBaseName . ' (Passengers)')
+                    ->first();
+                
+                if ($passengerItem && is_numeric($passengerItem->value)) {
+                    $avgPassengers = floatval($passengerItem->value);
+                    
+                    // Calculate: (emission_factor × distance) / avg_passengers
+                    $emissions = ($emissionFactor * $distance) / $avgPassengers;
+                } else {
+                    // Fallback: assume 1 passenger if not found
+                    $emissions = $emissionFactor * $distance;
+                }
+            } else {
+                // This is passenger count data, shouldn't be used for entry
+                // Set emissions to 0 or throw error
+                $emissions = 0;
+            }
+        }
+        
+        // ============================================
+        // CATEGORY 4: VEHICLE EFFICIENCY
+        // ============================================
+        else {
+            // Vehicle efficiency is reference data, not for consumption entry
+            // Use simple multiplication as fallback
+            if (is_numeric($factor->value)) {
+                $emissions = $request->quantity * floatval($factor->value);
+            }
+        }
+
 
         $entry = ConsumptionEntry::create([
             'user_id'         => $userId,

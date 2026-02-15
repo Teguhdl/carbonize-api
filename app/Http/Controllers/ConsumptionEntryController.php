@@ -89,10 +89,24 @@ class ConsumptionEntryController extends BaseController
                 
                 if ($result['success']) {
                     $emissions = $result['co2e'];
+                    $metadata['_climatiq_source'] = 'api';
+                    $metadata['_climatiq_co2e'] = $result['co2e'];
                 } else {
-                    // Fallback to value if available
-                    if (is_numeric($factor->value)) {
+                    // Climatiq API failed - log error details
+                    \Log::warning('Climatiq API failed for item: ' . $factor->name, [
+                        'climatiq_id' => $factor->climatiq_id,
+                        'error' => $result['error'] ?? 'unknown',
+                        'details' => $result['details'] ?? null,
+                    ]);
+                    
+                    // Fallback to fixed value if available and non-zero
+                    if (is_numeric($factor->value) && floatval($factor->value) > 0) {
                         $emissions = $request->quantity * floatval($factor->value);
+                        $metadata['_climatiq_source'] = 'fallback_value';
+                    } else {
+                        $emissions = 0;
+                        $metadata['_climatiq_source'] = 'failed';
+                        $metadata['_climatiq_error'] = $result['error'] ?? 'Climatiq API call failed and no fallback value';
                     }
                 }
             } else {

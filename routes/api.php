@@ -62,6 +62,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/entries', [ConsumptionEntryController::class, 'index']);
             Route::post('/entries', [ConsumptionEntryController::class, 'store']);
             Route::get('/entries/{id}', [ConsumptionEntryController::class, 'show']);
+            Route::put('/entries/{id}', [ConsumptionEntryController::class, 'update']);
+            Route::post('/entries/{id}', [ConsumptionEntryController::class, 'update']); // multipart fallback
             Route::delete('/entries/{id}', [ConsumptionEntryController::class, 'destroy']);
         });
     });

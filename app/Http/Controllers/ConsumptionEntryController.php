@@ -208,13 +208,29 @@ class ConsumptionEntryController extends BaseController
     {
         $userId = $request->custom_user_id;
 
-        $entries = ConsumptionEntry::with('factorItem.category')
-            ->where('user_id', $userId)
-            ->orderBy('entry_date', 'desc')
-            ->get();
+        $query = ConsumptionEntry::with('factorItem.category')
+            ->where('user_id', $userId);
+
+        // Filter by single date (exact day)
+        if ($request->has('date')) {
+            $query->whereDate('entry_date', $request->date);
+        }
+
+        // Filter by date range
+        if ($request->has('start_date')) {
+            $query->whereDate('entry_date', '>=', $request->start_date);
+        }
+        if ($request->has('end_date')) {
+            $query->whereDate('entry_date', '<=', $request->end_date);
+        }
+
+        $entries = $query->orderBy('entry_date', 'desc')->get();
 
         if ($entries->isEmpty()) {
-            return $this->notFound('Tidak ada data konsumsi untuk user ini');
+            return $this->success(
+                [],
+                'Tidak ada data konsumsi untuk tanggal ini'
+            );
         }
 
         return $this->success(
@@ -232,6 +248,151 @@ class ConsumptionEntryController extends BaseController
         }
 
         return $this->success($entry);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $entry = ConsumptionEntry::find($id);
+
+        if (!$entry) {
+            return $this->notFound('Entri konsumsi tidak ditemukan');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'factor_items_id'  => 'sometimes|integer|exists:emission_factor_items,id',
+            'quantity'         => 'sometimes|numeric|min:0.1',
+            'entry_date'       => 'sometimes|date',
+            'image'            => 'nullable|file|image|max:2048',
+            'metadata'         => 'nullable|array'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validation($validator->errors());
+        }
+
+        // Update image if provided
+        if ($request->hasFile('image')) {
+            $entry->image = $request->file('image')->store('consumption_images', 'public');
+        }
+
+        // Update basic fields
+        if ($request->has('factor_items_id')) {
+            $entry->factor_items_id = $request->factor_items_id;
+        }
+        if ($request->has('quantity')) {
+            $entry->quantity = $request->quantity;
+        }
+        if ($request->has('entry_date')) {
+            $entry->entry_date = $request->entry_date;
+        }
+
+        // Update metadata
+        $defaultMetadata = [
+            'customEfficiency'    => null,
+            'fuelType'            => "",
+            'transportationMode'  => "",
+            'useCustomEfficiency' => false,
+            'vehicleType'         => "",
+        ];
+
+        $requestMetadata = $request->input('metadata', []);
+        if (!is_array($requestMetadata)) {
+            $requestMetadata = [];
+        }
+        $existingMetadata = is_array($entry->metadata) ? $entry->metadata : $defaultMetadata;
+        $metadata = array_merge($existingMetadata, $requestMetadata);
+        $entry->metadata = $metadata;
+
+        // Recalculate emissions
+        $factor = EmissionFactorItem::find($entry->factor_items_id);
+        if ($factor) {
+            $emissions = 0;
+            $categoryName = $factor->category->category_name ?? '';
+
+            // FOOD & PACKAGING
+            if (str_contains(strtolower($categoryName), 'food') || 
+                str_contains(strtolower($categoryName), 'packaging')) {
+                
+                if (!empty($factor->climatiq_id)) {
+                    $result = $this->climatiqService->calculateEmissions(
+                        climatiqId: $factor->climatiq_id,
+                        quantity: (float) $entry->quantity,
+                        unit: 'kg',
+                        parameterType: 'weight'
+                    );
+                    if ($result['success']) {
+                        $emissions = $result['co2e'];
+                    } elseif (is_numeric($factor->value)) {
+                        $emissions = $entry->quantity * floatval($factor->value);
+                    }
+                } elseif (is_numeric($factor->value)) {
+                    $emissions = $entry->quantity * floatval($factor->value);
+                }
+            }
+            // FUEL CONSUMPTION
+            elseif (str_contains(strtolower($categoryName), 'fuel')) {
+                $distance = (float) $entry->quantity;
+                $fuelEmissionFactor = floatval($factor->value);
+                
+                $efficiency = 20;
+                $useCustom = $metadata['useCustomEfficiency'] ?? false;
+                if (is_string($useCustom)) {
+                    $useCustom = in_array(strtolower($useCustom), ['true', '1', 'yes']);
+                }
+                
+                if ($useCustom && !empty($metadata['customEfficiency']) && (float) $metadata['customEfficiency'] > 0) {
+                    $efficiency = (float) $metadata['customEfficiency'];
+                } else {
+                    if (!empty($metadata['vehicleType'])) {
+                        $vehicleItem = EmissionFactorItem::whereHas('category', function($q) {
+                            $q->where('category_name', 'Vehicle Efficiency');
+                        })->where('name', $metadata['vehicleType'])->first();
+                        if ($vehicleItem && is_numeric($vehicleItem->value)) {
+                            $efficiency = floatval($vehicleItem->value);
+                        }
+                    }
+                }
+                if ($efficiency <= 0) $efficiency = 20;
+                
+                $emissions = ($distance / $efficiency) * $fuelEmissionFactor;
+            }
+            // PUBLIC TRANSPORT
+            elseif (str_contains(strtolower($categoryName), 'transport')) {
+                $distance = (float) $entry->quantity;
+                $isEmissionFactor = str_contains($factor->name, '(Emission)');
+                
+                if ($isEmissionFactor) {
+                    $emissionFactor = floatval($factor->value);
+                    $vehicleBaseName = str_replace(' (Emission)', '', $factor->name);
+                    $passengerItem = EmissionFactorItem::where('factor_category_id', $factor->factor_category_id)
+                        ->where('name', $vehicleBaseName . ' (Passengers)')
+                        ->first();
+                    
+                    if ($passengerItem && is_numeric($passengerItem->value)) {
+                        $avgPassengers = floatval($passengerItem->value);
+                        $emissions = ($emissionFactor * $distance) / $avgPassengers;
+                    } else {
+                        $emissions = $emissionFactor * $distance;
+                    }
+                }
+            }
+            // FALLBACK
+            else {
+                if (is_numeric($factor->value)) {
+                    $emissions = $entry->quantity * floatval($factor->value);
+                }
+            }
+
+            $entry->emissions = $emissions;
+        }
+
+        $entry->save();
+        $entry->load('factorItem.category');
+
+        return $this->success(
+            $entry,
+            'Entri konsumsi berhasil diperbarui'
+        );
     }
 
     public function destroy($id)

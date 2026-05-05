@@ -10,34 +10,69 @@ class ConsumptionEntry extends Model
 
     protected $fillable = [
         'user_id',
-        'factor_items_id',
+        'entry_type',
         'entry_date',
+        'quantity',
         'emissions',
         'image',
         'metadata',
-        'quantity',
+        // Food
+        'food_item_id',
+        // Private vehicle
+        'vehicle_type_id',
+        'fuel_type_id',
+        'custom_efficiency',
+        // Public transit
+        'transit_vehicle_id',
     ];
 
     protected $casts = [
-        'entry_date' => 'datetime',
-        'emissions' => 'float',
-        'quantity' => 'float',
-        'metadata' => 'array',
-        'created_at' => 'datetime',
+        'entry_date'        => 'date',
+        'quantity'          => 'float',
+        'emissions'         => 'float',
+        'custom_efficiency' => 'float',
+        'metadata'          => 'array',
+        'created_at'        => 'datetime',
     ];
 
-    // Relations
+    /* --------------------------------------------------------------------------
+     | Relations
+     -------------------------------------------------------------------------- */
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function factorItem()
+    /** Food & Packaging */
+    public function foodItem()
     {
-        return $this->belongsTo(EmissionFactorItem::class, 'factor_items_id');
+        return $this->belongsTo(FoodItem::class, 'food_item_id');
     }
 
-    public function getImageAttribute($value)
+    /** Private Vehicle — kendaraan */
+    public function vehicleType()
+    {
+        return $this->belongsTo(VehicleType::class, 'vehicle_type_id');
+    }
+
+    /** Private Vehicle — bahan bakar */
+    public function fuelType()
+    {
+        return $this->belongsTo(FuelType::class, 'fuel_type_id');
+    }
+
+    /** Public Transit */
+    public function transitVehicle()
+    {
+        return $this->belongsTo(TransitVehicle::class, 'transit_vehicle_id');
+    }
+
+    /* --------------------------------------------------------------------------
+     | Accessors
+     -------------------------------------------------------------------------- */
+
+    public function getImageAttribute($value): ?string
     {
         return $value ? url('storage/' . $value) : null;
     }

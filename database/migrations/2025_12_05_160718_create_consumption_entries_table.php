@@ -12,7 +12,13 @@ return new class extends Migration
             $table->bigIncrements('id');
 
             $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('factor_items_id');
+            // Pada SQLite (testing), kolom dibuat nullable karena migration
+            // yang menjadikannya nullable dilewati (SQLite tak dukung dropForeign).
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                $table->unsignedBigInteger('factor_items_id')->nullable();
+            } else {
+                $table->unsignedBigInteger('factor_items_id');
+            }
 
             $table->dateTime('entry_date');
             $table->decimal('emissions', 12, 4);

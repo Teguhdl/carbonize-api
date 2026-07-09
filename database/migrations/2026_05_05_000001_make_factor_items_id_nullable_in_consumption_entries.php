@@ -13,6 +13,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // SQLite (digunakan saat testing) tidak mendukung dropForeign.
+        // Kolom nullable sudah ditangani oleh migration refactor berikutnya,
+        // jadi operasi ini cukup dilewati pada SQLite.
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('consumption_entries', function (Blueprint $table) {
             // Drop foreign key dulu sebelum mengubah kolom
             $table->dropForeign(['factor_items_id']);
